@@ -89,9 +89,9 @@ export function Nav() {
           <Image
             src="/capyaba-mascot.png"
             alt="CapyABA"
-            width={58}
-            height={83}
-            style={{ objectFit: 'contain', display: 'block' }}
+            width={72}
+            height={103}
+            style={{ objectFit: 'contain', display: 'block', marginTop: '-18px', marginBottom: '-18px' }}
             priority
           />
         </Link>
