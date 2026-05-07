@@ -11,6 +11,7 @@
  */
 
 import { useState, useRef, useCallback, useLayoutEffect, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
@@ -128,6 +129,29 @@ function FormatBar({ target, onFormat, savedRange, onSaveRange }: {
     onFormat()
   }
 
+  const applyFontSize = (px: string) => {
+    if (!target) return
+    target.focus()
+    const sel = window.getSelection()
+    if (savedRange && sel) {
+      sel.removeAllRanges()
+      sel.addRange(savedRange)
+    }
+    if (!sel || sel.isCollapsed) return
+    document.execCommand('styleWithCSS', false, 'true')
+    document.execCommand('fontSize', false, '7') // placeholder
+    // Replace font size=7 with real CSS
+    const spans = target.querySelectorAll('font[size="7"]')
+    spans.forEach(s => {
+      const sp = document.createElement('span')
+      sp.style.fontSize = px
+      sp.innerHTML = (s as HTMLElement).innerHTML
+      s.replaceWith(sp)
+    })
+    document.execCommand('styleWithCSS', false, 'false')
+    onFormat()
+  }
+
   const B: React.CSSProperties = {
     width: 30, height: 28, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     border: '1px solid #e0dbd4', borderRadius: 6, background: '#fff',
@@ -150,15 +174,15 @@ function FormatBar({ target, onFormat, savedRange, onSaveRange }: {
       <span style={{ width:1, height:20, background:'#e0dbd4', margin:'0 3px' }} />
       <select
         value={fontSize}
-        onChange={e => { const v = e.target.value; setFontSize(''); if (v) ex('fontSize', v) }}
+        onChange={e => { const v = e.target.value; setFontSize(''); if (v) applyFontSize(v) }}
         onMouseDown={e => { e.stopPropagation(); onSaveRange() }}
         style={{ height:28, fontSize:11, border:'1px solid #e0dbd4', borderRadius:6, background:'#fff', color:'#444', padding:'0 4px', cursor:'pointer' }}>
         <option value="">Tamaño</option>
-        <option value="1">Pequeño</option>
-        <option value="3">Normal</option>
-        <option value="4">Grande</option>
-        <option value="5">Muy grande</option>
-        <option value="6">Extra</option>
+        <option value="12px">Pequeño</option>
+        <option value="16px">Normal</option>
+        <option value="20px">Grande</option>
+        <option value="26px">Muy grande</option>
+        <option value="34px">Extra</option>
       </select>
       <span style={{ width:1, height:20, background:'#e0dbd4', margin:'0 3px' }} />
       <label style={{ display:'inline-flex', alignItems:'center', gap:3, cursor:'pointer' }}
@@ -592,14 +616,15 @@ function BlockMenu({ onSelect, onClose, anchorRef }: {
     let left = r.left + r.width / 2 - menuW / 2
     if (left < 12) left = 12
     if (left + menuW > window.innerWidth - 12) left = window.innerWidth - menuW - 12
-    const menuH = Math.min(380, window.innerHeight - 24)
+    const viewH = window.visualViewport?.height ?? window.innerHeight
+    const menuH = Math.min(380, viewH - 24)
     let top = r.bottom + 10
-    if (top + menuH > window.innerHeight - 12) top = r.top - menuH - 10
+    if (top + menuH > viewH - 12) top = r.top - menuH - 10
     if (top < 12) top = 12
     setPos({ top, left })
   }, [])
 
-  return (
+  return createPortal(
     <>
       <div style={{ position:'fixed', inset:0, zIndex:9998 }} onClick={onClose} />
       <div style={{
@@ -608,7 +633,7 @@ function BlockMenu({ onSelect, onClose, anchorRef }: {
         background:'#fff', border:'1.5px solid #e8e4dd',
         borderRadius:18, boxShadow:'0 20px 60px rgba(0,0,0,.18), 0 4px 16px rgba(0,0,0,.08)',
         padding:16,
-        maxHeight: `calc(100vh - 24px)`,
+        maxHeight: `calc(100dvh - ${pos.top + 12}px)`,
         overflowY: 'auto',
       }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12, paddingBottom:10, borderBottom:'1px solid #f0ece6' }}>
@@ -645,7 +670,7 @@ function BlockMenu({ onSelect, onClose, anchorRef }: {
           ))}
         </div>
       </div>
-    </>
+    </>, document.body
   )
 }
 
@@ -701,7 +726,7 @@ function SingleBlock({ block, pageId, idx, total, onUpdate, onUpdateMeta, onDele
       </div>
 
       {/* Botón + para agregar bloque después — SIEMPRE VISIBLE */}
-      <div style={{ display:'flex', justifyContent:'center', position:'relative', height:0, zIndex:20, marginTop:0 }}>
+      <div style={{ display:'flex', justifyContent:'center', position:'relative', height:28, zIndex:20, marginTop:-14 }}>
         <div style={{ position:'relative' }}>
           <button ref={btnRef} type="button"
             onClick={() => setMenuOpen(o => !o)}
@@ -712,7 +737,7 @@ function SingleBlock({ block, pageId, idx, total, onUpdate, onUpdateMeta, onDele
               color:'#999', fontSize:18, lineHeight:1,
               cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
               boxShadow:'0 2px 8px rgba(0,0,0,.12)',
-              marginTop:5, transition:'all .15s',
+              transition:'all .15s',
             }}
             onMouseEnter={e => { e.currentTarget.style.borderColor='#c4783c'; e.currentTarget.style.color='#c4783c'; e.currentTarget.style.transform='scale(1.1)' }}
             onMouseLeave={e => { e.currentTarget.style.borderColor='#d0c8be'; e.currentTarget.style.color='#999'; e.currentTarget.style.transform='scale(1)' }}
@@ -733,6 +758,7 @@ function SingleBlock({ block, pageId, idx, total, onUpdate, onUpdateMeta, onDele
 // ── Btn helper ────────────────────────────────────────────────────────────────
 
 function Btn({ icon, tip, onClick, danger }: { icon:string; tip:string; onClick:()=>void; danger?:boolean }) {
+  const isTrash = icon === '🗑'
   return (
     <button type="button" title={tip} onClick={onClick} style={{
       width:26, height:26, borderRadius:6,
@@ -740,7 +766,17 @@ function Btn({ icon, tip, onClick, danger }: { icon:string; tip:string; onClick:
       background: danger ? '#fef2f2' : '#fff',
       color: danger ? '#dc2626' : '#666',
       fontSize:11, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center',
-    }}>{icon}</button>
+    }}>
+      {isTrash ? (
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+          <path d="M10 11v6"/>
+          <path d="M14 11v6"/>
+          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+        </svg>
+      ) : icon}
+    </button>
   )
 }
 
