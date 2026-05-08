@@ -194,6 +194,8 @@ const FOOTER_COLS = [
     ['Blog', '/blog'],
     ['Sobre mí', '/sobre-mi'],
     ['Testimonios', '/testimonios'],
+    ['Devoluciones', '/devoluciones'],
+    ['Libro de Reclamaciones', '/libro-reclamaciones'],
   ]},
   { title: 'Contacto', links: [
     ['WhatsApp', `https://wa.me/51940428169`],
@@ -241,12 +243,18 @@ export function Footer() {
             <p style={{ fontSize: '.8rem', color: 'rgba(244,236,223,.35)', marginTop: '.3rem' }}>
               © 2026 CapyABA · Francesca Ramírez Bontá · Hecho con 💛 desde Perú
             </p>
-            <div style={{ display: 'flex', gap: '1.2rem', marginTop: '.5rem' }}>
+            <div style={{ display: 'flex', gap: '1.2rem', marginTop: '.5rem', flexWrap: 'wrap' }}>
               <Link href="/privacidad" style={{ fontSize: '.78rem', color: 'rgba(244,236,223,.45)', textDecoration: 'none' }}>
                 Política de Privacidad
               </Link>
               <Link href="/terminos" style={{ fontSize: '.78rem', color: 'rgba(244,236,223,.45)', textDecoration: 'none' }}>
                 Términos y Condiciones
+              </Link>
+              <Link href="/devoluciones" style={{ fontSize: '.78rem', color: 'rgba(244,236,223,.45)', textDecoration: 'none' }}>
+                Devoluciones
+              </Link>
+              <Link href="/libro-reclamaciones" style={{ fontSize: '.78rem', color: 'rgba(244,236,223,.6)', textDecoration: 'none', fontWeight: 600 }}>
+                📋 Libro de Reclamaciones
               </Link>
             </div>
           </div>
