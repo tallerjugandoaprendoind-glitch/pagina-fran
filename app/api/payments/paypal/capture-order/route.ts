@@ -78,13 +78,27 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  // ── CORRECCIÓN DE SEGURIDAD: verificar que el courseId del body
+  //    coincida con el reference_id que se guardó al crear la orden.
+  //    Evita que alguien cree una orden para el curso A y luego
+  //    envíe courseId del curso B para obtener acceso sin pagar. ────────────
+  const orderReferenceId = captureData.purchase_units?.[0]?.reference_id
+  if (orderReferenceId !== courseId) {
+    console.error('PayPal courseId mismatch:', { orderReferenceId, courseId, orderId, userId: user.id })
+    return NextResponse.json(
+      { error: 'La orden no corresponde al curso indicado' },
+      { status: 400 }
+    )
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   // Extraer monto capturado
   const captureUnit = captureData.purchase_units?.[0]
   const capture = captureUnit?.payments?.captures?.[0]
   const paidAmount = parseFloat(capture?.amount?.value || '0')
   const paypalPaymentId = capture?.id || orderId
 
-  // Log del pago
+  // Log del pago (la tabla payment_logs debe existir — ver migración)
   await adminClient.from('payment_logs').insert({
     user_id: user.id,
     course_id: courseId,
@@ -95,6 +109,19 @@ export async function POST(req: NextRequest) {
     status: 'completed',
     raw_response: captureData,
   })
+
+  // Verificar que no esté ya matriculado (idempotencia)
+  const { data: existingEnrollment } = await adminClient
+    .from('enrollments')
+    .select('id')
+    .eq('course_id', courseId)
+    .eq('student_id', user.id)
+    .single()
+
+  if (existingEnrollment) {
+    // Pago duplicado pero enrollment ya existe — responder OK para no bloquear al usuario
+    return NextResponse.json({ success: true, paymentId: paypalPaymentId, courseId })
+  }
 
   // Crear enrollment
   const { error: enrollError } = await adminClient.from('enrollments').insert({
@@ -107,7 +134,6 @@ export async function POST(req: NextRequest) {
   })
 
   if (enrollError) {
-    // El cargo ya fue cobrado — loggear para revisión manual
     console.error('ENROLLMENT ERROR after PayPal capture:', enrollError, paypalPaymentId)
     return NextResponse.json(
       {
